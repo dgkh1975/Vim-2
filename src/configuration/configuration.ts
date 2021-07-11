@@ -20,6 +20,11 @@ import {
 import * as packagejson from '../../package.json';
 import { SUPPORT_VIMRC } from 'platform/constants';
 
+// https://stackovrflow.com/questions/51465182/how-to-remove-index-signature-using-mapped-types/51956054#51956054
+type RemoveIndex<T> = {
+  [P in keyof T as string extends P ? never : number extends P ? never : P]: T[P];
+};
+
 export const extensionVersion = packagejson.version;
 
 /**
@@ -182,7 +187,7 @@ class Configuration implements IConfiguration {
     return validatorResults;
   }
 
-  getConfiguration(section: string = ''): vscode.WorkspaceConfiguration {
+  getConfiguration(section: string = ''): RemoveIndex<vscode.WorkspaceConfiguration> {
     const document = vscode.window.activeTextEditor?.document;
     const resource = document ? { uri: document.uri, languageId: document.languageId } : undefined;
     return vscode.workspace.getConfiguration(section, resource);
@@ -307,10 +312,10 @@ class Configuration implements IConfiguration {
   };
 
   @overlapSetting({ settingName: 'tabSize', defaultValue: 8 })
-  tabstop: number = 8;
+  tabstop!: number;
 
   @overlapSetting({ settingName: 'cursorStyle', defaultValue: 'line' })
-  private editorCursorStyleRaw: string = 'line';
+  private editorCursorStyleRaw!: string;
 
   get editorCursorStyle(): vscode.TextEditorCursorStyle | undefined {
     return this.cursorStyleFromString(this.editorCursorStyleRaw);
@@ -320,7 +325,7 @@ class Configuration implements IConfiguration {
   }
 
   @overlapSetting({ settingName: 'insertSpaces', defaultValue: false })
-  expandtab: boolean = false;
+  expandtab!: boolean;
 
   @overlapSetting({
     settingName: 'lineNumbers',
@@ -332,7 +337,7 @@ class Configuration implements IConfiguration {
       ['interval', false],
     ]),
   })
-  number: boolean = true;
+  number!: boolean;
 
   @overlapSetting({
     settingName: 'lineNumbers',
@@ -344,13 +349,13 @@ class Configuration implements IConfiguration {
       ['interval', false],
     ]),
   })
-  relativenumber: boolean = false;
+  relativenumber!: boolean;
 
   @overlapSetting({
     settingName: 'wordSeparators',
     defaultValue: '/\\()"\':,.;<>~!@#$%^&*|+=[]{}`?-',
   })
-  iskeyword: string = '/\\()"\':,.;<>~!@#$%^&*|+=[]{}`?-';
+  iskeyword!: string;
 
   @overlapSetting({
     settingName: 'wordWrap',
@@ -362,7 +367,7 @@ class Configuration implements IConfiguration {
       ['bounded', true],
     ]),
   })
-  wrap: boolean = false;
+  wrap!: boolean;
 
   boundKeyCombinations: IKeyBinding[] = [];
 

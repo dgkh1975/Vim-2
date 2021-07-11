@@ -1,5 +1,84 @@
 # Change Log
 
+## [v1.21.5](https://github.com/vscodevim/vim/tree/v1.21.5) (2021-07-06)
+
+[Full Changelog](https://github.com/vscodevim/vim/compare/v1.21.4...v1.21.5)
+
+**Fixed Bugs:**
+
+- :sort u merges two duplicates [\#6825](https://github.com/VSCodeVim/Vim/issues/6825)
+- setting space as leader key does not work anymore [\#6824](https://github.com/VSCodeVim/Vim/issues/6824)
+- Problems with \<leader\> key and remapping in the latest version [\#6821](https://github.com/VSCodeVim/Vim/issues/6821)
+
+**Merged pull requests:**
+
+- Fix sort unique bug [\#6835](https://github.com/VSCodeVim/Vim/pull/6835) ([karizma](https://github.com/karizma))
+
+## [v1.21.4](https://github.com/vscodevim/vim/tree/v1.21.4) (2021-07-02)
+
+[Full Changelog](https://github.com/vscodevim/vim/compare/v1.21.3...v1.21.4)
+
+**Fixed Bugs:**
+
+- `2i"` should act like `a"`, but exclude whitespace before/after the quotes [\#6806](https://github.com/VSCodeVim/Vim/issues/6806)
+
+## [v1.21.3](https://github.com/vscodevim/vim/tree/v1.21.3) (2021-06-18)
+
+[Full Changelog](https://github.com/vscodevim/vim/compare/v1.21.2...v1.21.3)
+
+**Fixed Bugs:**
+
+- `i"`/`a"` should match quotes on line when cursor is on quote [\#6761](https://github.com/VSCodeVim/Vim/issues/6761)
+- `a"` should include the space after the closing quote [\#6747](https://github.com/VSCodeVim/Vim/issues/6747)
+- Incorrect cursor position after `vi"c` when cursor on quote [\#6740](https://github.com/VSCodeVim/Vim/issues/6740)
+- `\<BS\>` deletes too much leading whitespace when using hard tabstops with `expandtab` enabled [\#6735](https://github.com/VSCodeVim/Vim/issues/6735)
+- `gd` that causes a file load followed by `h`/`j`/`k`/`l` jumps to random spot [\#6544](https://github.com/VSCodeVim/Vim/issues/6544)
+
+## [v1.21.2](https://github.com/vscodevim/vim/tree/v1.21.2) (2021-06-11)
+
+[Full Changelog](https://github.com/vscodevim/vim/compare/v1.21.1...v1.21.2)
+
+**Fixed Bugs:**
+
+- `\<Esc\>` does not cancel multi-cursor [\#6719](https://github.com/VSCodeVim/Vim/issues/6719)
+- incorrect undo of macro execution containing delete after join [\#6645](https://github.com/VSCodeVim/Vim/issues/6645)
+
+## [v1.21.1](https://github.com/vscodevim/vim/tree/v1.21.1) (2021-06-10)
+
+[Full Changelog](https://github.com/vscodevim/vim/compare/v1.21.0...v1.21.1)
+
+**Fixed Bugs:**
+
+- User Settings Getting Overridden [\#6717](https://github.com/VSCodeVim/Vim/issues/6717)
+- incorrect placement of brackets when using macros [\#6692](https://github.com/VSCodeVim/Vim/issues/6692)
+
+## [v1.21.0](https://github.com/vscodevim/vim/tree/v1.21.0) (2021-06-09)
+
+[Full Changelog](https://github.com/vscodevim/vim/compare/v1.20.3...v1.21.0)
+
+**Enhancements:**
+
+- `:s` should report \# of substitutions [\#6698](https://github.com/VSCodeVim/Vim/issues/6698)
+- Support virtual workspaces [\#6596](https://github.com/VSCodeVim/Vim/issues/6596)
+- Support Workspace Trust [\#6587](https://github.com/VSCodeVim/Vim/issues/6587)
+- Python Object Motions [\#6213](https://github.com/VSCodeVim/Vim/issues/6213)
+
+**Fixed Bugs:**
+
+- Bug with tab removal before odd number of characters [\#6327](https://github.com/VSCodeVim/Vim/issues/6327)
+
+**Closed issues:**
+
+- Enable `--noImplicitOverride` [\#6670](https://github.com/VSCodeVim/Vim/issues/6670)
+- Surround emulation gets positions wrong when tabs are involved [\#6564](https://github.com/VSCodeVim/Vim/issues/6564)
+
+**Merged pull requests:**
+
+- Implement :vsc to run VSCode commands [\#6694](https://github.com/VSCodeVim/Vim/pull/6694) ([meluskyc](https://github.com/meluskyc))
+- Surround Rewrite [\#6452](https://github.com/VSCodeVim/Vim/pull/6452) ([sql-koala](https://github.com/sql-koala))
+- Bugfix substitute with backslash\(fixes \#2710\) [\#6409](https://github.com/VSCodeVim/Vim/pull/6409) ([sekai013](https://github.com/sekai013))
+- Add Python specific motions \(fixes \#6213\) [\#6393](https://github.com/VSCodeVim/Vim/pull/6393) ([abid-mujtaba](https://github.com/abid-mujtaba))
+
 ## [v1.20.3](https://github.com/vscodevim/vim/tree/v1.20.3) (2021-05-18)
 
 [Full Changelog](https://github.com/vscodevim/vim/compare/v1.20.2...v1.20.3)
@@ -27,7 +106,6 @@
 
 - The joinspaces configuration option should default to false [\#6572](https://github.com/VSCodeVim/Vim/issues/6572)
 - af command from Readme doesn't work [\#6565](https://github.com/VSCodeVim/Vim/issues/6565)
-- Insertion after deletion when one of multiple cursors is at the end of a line [\#6053](https://github.com/VSCodeVim/Vim/issues/6053)
 
 **Merged pull requests:**
 
@@ -115,10 +193,6 @@
 
 [Full Changelog](https://github.com/vscodevim/vim/compare/v1.18.9...v1.19.0)
 
-**Enhancements:**
-
-- goto command not implemented [\#6025](https://github.com/VSCodeVim/Vim/issues/6025)
-
 **Fixed Bugs:**
 
 - Tests fail silently on module loading problems. [\#6244](https://github.com/VSCodeVim/Vim/issues/6244)
@@ -129,52 +203,24 @@
 **Closed issues:**
 
 - Failed to handle key=c. Illegal value for `line` [\#6301](https://github.com/VSCodeVim/Vim/issues/6301)
-- Enable `noImplicitAny` in tsconfig [\#6034](https://github.com/VSCodeVim/Vim/issues/6034)
 
 **Merged pull requests:**
 
 - Fix even more dependency cycles [\#6243](https://github.com/VSCodeVim/Vim/pull/6243) ([inspirer](https://github.com/inspirer))
 - Fix several dependency cycles [\#6208](https://github.com/VSCodeVim/Vim/pull/6208) ([inspirer](https://github.com/inspirer))
 - Implement previous context marks \(add to jump list on m' / m`\) [\#6174](https://github.com/VSCodeVim/Vim/pull/6174) ([jose-elias-alvarez](https://github.com/jose-elias-alvarez))
-- Add Erlang style comments [\#5970](https://github.com/VSCodeVim/Vim/pull/5970) ([maxnordlund](https://github.com/maxnordlund))
-- Potential fix for non latin chars issue [\#5951](https://github.com/VSCodeVim/Vim/pull/5951) ([berknam](https://github.com/berknam))
 
 ## [v1.18.9](https://github.com/vscodevim/vim/tree/v1.18.9) (2021-02-05)
 
 [Full Changelog](https://github.com/vscodevim/vim/compare/v1.18.8...v1.18.9)
 
-**Closed issues:**
-
-- Failed to handle key=i. Cannot read property 'start' of undefined [\#6042](https://github.com/VSCodeVim/Vim/issues/6042)
-
 ## [v1.18.8](https://github.com/vscodevim/vim/tree/v1.18.8) (2021-02-02)
 
 [Full Changelog](https://github.com/vscodevim/vim/compare/v1.18.7...v1.18.8)
 
-**Merged pull requests:**
-
-- Polyfill OS/Process/setImmediate [\#6081](https://github.com/VSCodeVim/Vim/pull/6081) ([rebornix](https://github.com/rebornix))
-- no look behind for safari [\#6080](https://github.com/VSCodeVim/Vim/pull/6080) ([rebornix](https://github.com/rebornix))
-
 ## [v1.18.7](https://github.com/vscodevim/vim/tree/v1.18.7) (2021-02-01)
 
 [Full Changelog](https://github.com/vscodevim/vim/compare/v1.18.5...v1.18.7)
-
-**Enhancements:**
-
-- Implement `ZZ` and `ZQ` [\#5998](https://github.com/VSCodeVim/Vim/issues/5998)
-
-**Fixed Bugs:**
-
-- Cannot read property 'warn' of undefined [\#5983](https://github.com/VSCodeVim/Vim/issues/5983)
-
-**Merged pull requests:**
-
-- off load vimrc module in web [\#6067](https://github.com/VSCodeVim/Vim/pull/6067) ([rebornix](https://github.com/rebornix))
-- Fix multicursor insert register new [\#6065](https://github.com/VSCodeVim/Vim/pull/6065) ([sql-koala](https://github.com/sql-koala))
-- Fix 'cw' behavior on whitespace [\#6033](https://github.com/VSCodeVim/Vim/pull/6033) ([edemaine](https://github.com/edemaine))
-- Remove stray console.log statements [\#6032](https://github.com/VSCodeVim/Vim/pull/6032) ([edemaine](https://github.com/edemaine))
-- Document build/test process better [\#5946](https://github.com/VSCodeVim/Vim/pull/5946) ([edemaine](https://github.com/edemaine))
 
 ## [v1.18.5](https://github.com/vscodevim/vim/tree/v1.18.5) (2020-12-10)
 

@@ -288,10 +288,6 @@ export class ModeHandler implements vscode.Disposable, IModeHandler {
       return;
     }
 
-    if (e.selections.length === 1) {
-      this.vimState.isMultiCursor = false;
-    }
-
     if (isStatusBarMode(this.vimState.currentMode)) {
       return;
     }
@@ -567,7 +563,7 @@ export class ModeHandler implements vscode.Disposable, IModeHandler {
     }
 
     // Catch any text change not triggered by us (example: tab completion).
-    this.vimState.historyTracker.addChange(this.vimState.cursorsInitialState.map((c) => c.stop));
+    this.vimState.historyTracker.addChange();
 
     this.vimState.keyHistory.push(key);
 
@@ -846,9 +842,7 @@ export class ModeHandler implements vscode.Disposable, IModeHandler {
         this.vimState.alteredHistory = false;
         this.vimState.historyTracker.ignoreChange();
       } else {
-        this.vimState.historyTracker.addChange(
-          this.vimState.cursorsInitialState.map((c) => c.stop)
-        );
+        this.vimState.historyTracker.addChange();
       }
     }
 
@@ -1104,6 +1098,7 @@ export class ModeHandler implements vscode.Disposable, IModeHandler {
       await this.runAction(recordedState, action);
 
       if (this.vimState.lastMovementFailed) {
+        // TODO: Shouldn't this be `break`? Can't this leave us in a very bad state?
         return;
       }
 
@@ -1124,7 +1119,7 @@ export class ModeHandler implements vscode.Disposable, IModeHandler {
       this.vimState.cursorsInitialState = this.vimState.cursors;
 
       recordedState.actionsRun.push(action);
-      this.vimState.keyHistory = this.vimState.keyHistory.concat(action.keysPressed);
+      this.vimState.keyHistory.push(...action.keysPressed);
 
       await this.runAction(recordedState, action);
 

@@ -71,8 +71,9 @@ export class VimState implements vscode.Disposable {
   /**
    * Are multiple cursors currently present?
    */
-  // TODO: why isn't this a function?
-  public isMultiCursor = false;
+  public get isMultiCursor(): boolean {
+    return this._cursors.length > 1;
+  }
 
   /**
    * Is the multicursor something like visual block "multicursor", where
@@ -131,7 +132,7 @@ export class VimState implements vscode.Disposable {
   /**
    * All the keys we've pressed so far.
    */
-  public keyHistory: string[] = [];
+  public readonly keyHistory: string[] = [];
 
   /**
    * The cursor position (start, stop) when this action finishes.
@@ -181,7 +182,6 @@ export class VimState implements vscode.Disposable {
     }
 
     this._cursors = [...map.values()];
-    this.isMultiCursor = this._cursors.length > 1;
   }
 
   /**

@@ -19,7 +19,7 @@ export class SortCommand extends node.CommandBase {
     this.arguments = args;
   }
 
-  public neovimCapable(): boolean {
+  public override neovimCapable(): boolean {
     return true;
   }
 
@@ -43,6 +43,8 @@ export class SortCommand extends node.CommandBase {
       originalLines.push(vimState.document.lineAt(currentLine).text);
     }
 
+    const lastLineLength = originalLines[originalLines.length - 1].length;
+
     if (this.arguments.unique) {
       const seen = new Set<string>();
       const uniqueLines: string[] = [];
@@ -55,8 +57,6 @@ export class SortCommand extends node.CommandBase {
       }
       originalLines = uniqueLines;
     }
-
-    const lastLineLength = originalLines[originalLines.length - 1].length;
 
     const sortedLines = this.arguments.ignoreCase
       ? originalLines.sort((a: string, b: string) => a.localeCompare(b))
@@ -78,7 +78,7 @@ export class SortCommand extends node.CommandBase {
     });
   }
 
-  async executeWithRange(vimState: VimState, range: node.LineRange): Promise<void> {
+  override async executeWithRange(vimState: VimState, range: node.LineRange): Promise<void> {
     const [start, end] = range.resolve(vimState);
 
     await this.sortLines(vimState, start, end);

@@ -64,7 +64,7 @@ export class DocumentContentChangeAction extends BaseCommand {
     };
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (this.contentChanges.length === 0) {
       return;
     }
@@ -119,17 +119,9 @@ export class DocumentContentChangeAction extends BaseCommand {
       rightBoundary = laterOf(rightBoundary, newRightBoundary);
 
       if (replaceRange.start.isEqual(replaceRange.end)) {
-        vimState.recordedState.transformer.addTransformation({
-          type: 'insertText',
-          position: replaceRange.start,
-          text: change.text,
-        });
+        vimState.recordedState.transformer.insert(replaceRange.start, change.text);
       } else {
-        vimState.recordedState.transformer.addTransformation({
-          type: 'replaceText',
-          range: replaceRange,
-          text: change.text,
-        });
+        vimState.recordedState.transformer.replace(replaceRange, change.text);
       }
     }
   }
@@ -139,16 +131,13 @@ export class DocumentContentChangeAction extends BaseCommand {
       first: vscode.TextDocumentContentChangeEvent,
       second: vscode.TextDocumentContentChangeEvent
     ): vscode.TextDocumentContentChangeEvent | undefined {
-      if (
-        first.rangeOffset + first.text.length === second.rangeOffset ||
-        second.rangeLength === 0
-      ) {
+      if (first.rangeOffset + first.text.length === second.rangeOffset) {
         // Simple concatenation
         return {
           text: first.text + second.text,
           range: first.range,
           rangeOffset: first.rangeOffset,
-          rangeLength: first.rangeLength,
+          rangeLength: first.rangeLength + second.rangeOffset,
         };
       } else if (
         first.rangeOffset <= second.rangeOffset &&
@@ -210,7 +199,7 @@ class DisableExtension extends BaseCommand {
   ];
   keys = [SpecialKeys.ExtensionDisable];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Disabled);
   }
 }
@@ -220,7 +209,7 @@ class EnableExtension extends BaseCommand {
   modes = [Mode.Disabled];
   keys = [SpecialKeys.ExtensionEnable];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Normal);
   }
 }
@@ -229,12 +218,12 @@ class EnableExtension extends BaseCommand {
 export class CommandNumber extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['<number>'];
-  isCompleteAction = false;
-  runsOnceForEveryCursor() {
+  override isCompleteAction = false;
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const num = parseInt(this.keysPressed[0], 10);
     const operatorCount = vimState.recordedState.operatorCount;
 
@@ -263,7 +252,7 @@ export class CommandNumber extends BaseCommand {
     }
   }
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     const isZero = keysPressed[0] === '0';
 
     return (
@@ -272,7 +261,7 @@ export class CommandNumber extends BaseCommand {
     );
   }
 
-  public couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
     const isZero = keysPressed[0] === '0';
 
     return (
@@ -286,9 +275,9 @@ export class CommandNumber extends BaseCommand {
 export class CommandRegister extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['"', '<character>'];
-  isCompleteAction = false;
+  override isCompleteAction = false;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const register = this.keysPressed[1];
 
     if (Register.isValidRegister(register)) {
@@ -309,7 +298,7 @@ class CommandRecordMacro extends BaseCommand {
     ['q', '"'],
   ];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const registerKey = this.keysPressed[1];
     const register = registerKey.toLocaleLowerCase();
     vimState.macro = new RecordedState();
@@ -332,7 +321,7 @@ export class CommandQuitRecordMacro extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine];
   keys = ['q'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const macro = vimState.macro!;
 
     const existingMacro = (await Register.get(macro.registerName))?.text;
@@ -343,11 +332,11 @@ export class CommandQuitRecordMacro extends BaseCommand {
     vimState.macro = undefined;
   }
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return super.doesActionApply(vimState, keysPressed) && vimState.macro !== undefined;
   }
 
-  public couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return super.couldActionApply(vimState, keysPressed) && vimState.macro !== undefined;
   }
 }
@@ -356,11 +345,11 @@ export class CommandQuitRecordMacro extends BaseCommand {
 class CommandExecuteLastMacro extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine];
   keys = ['@', '@'];
-  runsOnceForEachCountPrefix = true;
-  canBeRepeatedWithDot = true;
-  isJump = true;
+  override runsOnceForEachCountPrefix = true;
+  override canBeRepeatedWithDot = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const { lastInvokedMacro } = vimState;
 
     if (lastInvokedMacro) {
@@ -377,10 +366,10 @@ class CommandExecuteLastMacro extends BaseCommand {
 class CommandExecuteMacro extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine];
   keys = ['@', '<character>'];
-  runsOnceForEachCountPrefix = true;
-  canBeRepeatedWithDot = true;
+  override runsOnceForEachCountPrefix = true;
+  override canBeRepeatedWithDot = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const register = this.keysPressed[1].toLocaleLowerCase();
 
     if (!Register.isValidRegister(register)) {
@@ -413,19 +402,21 @@ class CommandEsc extends BaseCommand {
   ];
   keys = [['<Esc>'], ['<C-c>'], ['<C-[>']];
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  preservesDesiredColumn() {
+  override preservesDesiredColumn() {
     return true;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (vimState.currentMode === Mode.Normal) {
       vimState.surround = undefined;
 
-      if (!vimState.isMultiCursor) {
+      if (vimState.isMultiCursor) {
+        vimState.cursors = [vimState.cursors[0]];
+      } else {
         // If there's nothing to do on the vim side, we might as well call some
         // of vscode's default "close notification" actions. I think we should
         // just add to this list as needed.
@@ -434,37 +425,26 @@ class CommandEsc extends BaseCommand {
           vscode.commands.executeCommand('closeMarkersNavigation'),
           vscode.commands.executeCommand('closeDirtyDiff'),
         ]);
-
-        return;
-      } else {
-        vimState.isMultiCursor = false;
       }
-    }
+    } else {
+      if (vimState.currentMode === Mode.EasyMotionMode) {
+        vimState.easyMotion.clearDecorations(vimState.editor);
+      } else if (vimState.currentMode === Mode.SurroundInputMode) {
+        vimState.surround = undefined;
+      }
 
-    if (vimState.currentMode === Mode.EasyMotionMode) {
-      vimState.easyMotion.clearDecorations(vimState.editor);
-    }
-
-    // Abort surround operation
-    if (vimState.currentMode === Mode.SurroundInputMode) {
-      vimState.surround = undefined;
-    }
-
-    await vimState.setCurrentMode(Mode.Normal);
-
-    if (!vimState.isMultiCursor) {
-      vimState.cursors = [vimState.cursors[0]];
+      await vimState.setCurrentMode(Mode.Normal);
     }
   }
 }
 
 abstract class CommandEditorScroll extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
-  runsOnceForEachCountPrefix = false;
+  override runsOnceForEachCountPrefix = false;
   abstract to: EditorScrollDirection;
   abstract by: EditorScrollByUnit;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const timesToRepeat = vimState.recordedState.count || 1;
     const visibleRange = vimState.editor.visibleRanges[0];
     const scrolloff = configuration
@@ -501,7 +481,7 @@ abstract class CommandEditorScroll extends BaseCommand {
 @RegisterAction
 class CommandCtrlE extends CommandEditorScroll {
   keys = ['<C-e>'];
-  preservesDesiredColumn() {
+  override preservesDesiredColumn() {
     return true;
   }
   to: EditorScrollDirection = 'down';
@@ -511,7 +491,7 @@ class CommandCtrlE extends CommandEditorScroll {
 @RegisterAction
 class CommandCtrlY extends CommandEditorScroll {
   keys = ['<C-y>'];
-  preservesDesiredColumn() {
+  override preservesDesiredColumn() {
     return true;
   }
   to: EditorScrollDirection = 'up';
@@ -524,7 +504,7 @@ class CommandCtrlY extends CommandEditorScroll {
  */
 abstract class CommandScrollAndMoveCursor extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
-  runsOnceForEachCountPrefix = false;
+  override runsOnceForEachCountPrefix = false;
   abstract to: EditorScrollDirection;
 
   /**
@@ -532,9 +512,11 @@ abstract class CommandScrollAndMoveCursor extends BaseCommand {
    */
   protected abstract getNumLines(vimState: VimState): number;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const { visibleRanges } = vimState.editor;
-    const smoothScrolling = configuration.getConfiguration('editor').smoothScrolling;
+    const smoothScrolling = configuration
+      .getConfiguration('editor')
+      .get<boolean>('smoothScrolling', false);
     const moveLines = (vimState.actionCount || 1) * this.getNumLines(vimState);
 
     let scrollLines = moveLines;
@@ -623,11 +605,11 @@ export class CommandInsertAtCursor extends BaseCommand {
   modes = [Mode.Normal];
   keys = [['i'], ['<Insert>']];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
   }
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Only allow this command to be prefixed with a count or nothing, no other
     // actions or operators before
     let previousActionsNumbers = true;
@@ -650,7 +632,7 @@ export class CommandReplaceAtCursorFromNormalMode extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['R'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const timesToRepeat = vimState.recordedState.count || 1;
 
     await vimState.setCurrentMode(Mode.Replace);
@@ -670,11 +652,11 @@ class CommandOverrideCopy extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine, Mode.VisualBlock, Mode.Insert, Mode.Normal];
   keys = ['<copy>']; // A special key - see ModeHandler
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     let text = '';
 
     if (vimState.currentMode === Mode.Visual) {
@@ -718,7 +700,7 @@ class CommandCmdA extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['<D-a>'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.cursorStartPosition = new Position(0, vimState.desiredColumn);
     vimState.cursorStopPosition = new Position(
       vimState.document.lineCount - 1,
@@ -733,7 +715,7 @@ class MarkCommand extends BaseCommand {
   keys = ['m', '<character>'];
   modes = [Mode.Normal];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const markName = this.keysPressed[1];
 
     vimState.historyTracker.addMark(position, markName);
@@ -744,11 +726,11 @@ class MarkCommand extends BaseCommand {
 class CommandShowCommandLine extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = [':'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (vimState.currentMode === Mode.Normal) {
       if (vimState.recordedState.count) {
         vimState.currentCommandlineText = `.,.+${vimState.recordedState.count - 1}`;
@@ -778,11 +760,11 @@ export class CommandShowCommandHistory extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['q', ':'];
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.recordedState.transformer.addTransformation({
       type: 'showCommandHistory',
     });
@@ -806,7 +788,7 @@ export class CommandShowSearchHistory extends BaseCommand {
 
   private direction = SearchDirection.Forward;
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
@@ -815,7 +797,7 @@ export class CommandShowSearchHistory extends BaseCommand {
     this.direction = direction;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (this.keysPressed.includes('?')) {
       this.direction = SearchDirection.Backward;
     }
@@ -833,7 +815,7 @@ class CommandDot extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['.'];
 
-  public async execCount(position: Position, vimState: VimState): Promise<void> {
+  public override async execCount(position: Position, vimState: VimState): Promise<void> {
     if (globalState.previousFullAction) {
       const count = vimState.recordedState.count || 1;
 
@@ -851,8 +833,9 @@ class CommandDot extends BaseCommand {
 class CommandRepeatSubstitution extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['&'];
+  override canBeRepeatedWithDot = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // Parsing the command from a string, while not ideal, is currently
     // necessary to make this work with and without neovim integration
     await commandLine.Run('s', vimState);
@@ -865,14 +848,14 @@ abstract class CommandFold extends BaseCommand {
   abstract commandName: string;
   direction: FoldDirection | undefined;
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Don't run if there's an operator because the Sneak plugin uses <operator>z
     return (
       super.doesActionApply(vimState, keysPressed) && vimState.recordedState.operator === undefined
     );
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const timesToRepeat = vimState.recordedState.count || 1;
     const args =
       this.direction !== undefined
@@ -894,7 +877,7 @@ class CommandToggleFold extends CommandFold {
 class CommandCloseFold extends CommandFold {
   keys = ['z', 'c'];
   commandName = 'editor.fold';
-  direction: FoldDirection = 'up';
+  override direction: FoldDirection = 'up';
 }
 
 @RegisterAction
@@ -907,7 +890,7 @@ class CommandCloseAllFolds extends CommandFold {
 class CommandOpenFold extends CommandFold {
   keys = ['z', 'o'];
   commandName = 'editor.unfold';
-  direction: FoldDirection = 'down';
+  override direction: FoldDirection = 'down';
 }
 
 @RegisterAction
@@ -918,14 +901,14 @@ class CommandOpenAllFolds extends CommandFold {
 
 @RegisterAction
 class CommandCloseAllFoldsRecursively extends CommandFold {
-  modes = [Mode.Normal];
+  override modes = [Mode.Normal];
   keys = ['z', 'C'];
   commandName = 'editor.foldRecursively';
 }
 
 @RegisterAction
 class CommandOpenAllFoldsRecursively extends CommandFold {
-  modes = [Mode.Normal];
+  override modes = [Mode.Normal];
   keys = ['z', 'O'];
   commandName = 'editor.unfoldRecursively';
 }
@@ -935,18 +918,18 @@ class CommandCenterScroll extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['z', 'z'];
 
-  preservesDesiredColumn() {
+  override preservesDesiredColumn() {
     return true;
   }
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Don't run if there's an operator because the Sneak plugin uses <operator>z
     return (
       super.doesActionApply(vimState, keysPressed) && vimState.recordedState.operator === undefined
     );
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // In these modes you want to center on the cursor position
     vimState.editor.revealRange(
       new vscode.Range(vimState.cursorStopPosition, vimState.cursorStopPosition),
@@ -960,14 +943,14 @@ class CommandCenterScrollFirstChar extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['z', '.'];
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Don't run if there's an operator because the Sneak plugin uses <operator>z
     return (
       super.doesActionApply(vimState, keysPressed) && vimState.recordedState.operator === undefined
     );
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // In these modes you want to center on the cursor position
     // This particular one moves cursor to first non blank char though
     vimState.editor.revealRange(
@@ -988,18 +971,18 @@ class CommandTopScroll extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['z', 't'];
 
-  preservesDesiredColumn() {
+  override preservesDesiredColumn() {
     return true;
   }
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Don't run if there's an operator because the Sneak plugin uses <operator>z
     return (
       super.doesActionApply(vimState, keysPressed) && vimState.recordedState.operator === undefined
     );
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'revealLine',
       args: {
@@ -1015,14 +998,14 @@ class CommandTopScrollFirstChar extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['z', '\n'];
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Don't run if there's an operator because the Sneak plugin uses <operator>z
     return (
       super.doesActionApply(vimState, keysPressed) && vimState.recordedState.operator === undefined
     );
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // In these modes you want to center on the cursor position
     // This particular one moves cursor to first non blank char though
     vimState.postponedCodeViewChanges.push({
@@ -1046,18 +1029,18 @@ class CommandBottomScroll extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['z', 'b'];
 
-  preservesDesiredColumn() {
+  override preservesDesiredColumn() {
     return true;
   }
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Don't run if there's an operator because the Sneak plugin uses <operator>z
     return (
       super.doesActionApply(vimState, keysPressed) && vimState.recordedState.operator === undefined
     );
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'revealLine',
       args: {
@@ -1073,14 +1056,14 @@ class CommandBottomScrollFirstChar extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['z', '-'];
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Don't run if there's an operator because the Sneak plugin uses <operator>z
     return (
       super.doesActionApply(vimState, keysPressed) && vimState.recordedState.operator === undefined
     );
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // In these modes you want to center on the cursor position
     // This particular one moves cursor to first non blank char though
     vimState.postponedCodeViewChanges.push({
@@ -1103,9 +1086,9 @@ class CommandBottomScrollFirstChar extends BaseCommand {
 class CommandGoToOtherEndOfHighlightedText extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['o'];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     [vimState.cursorStartPosition, vimState.cursorStopPosition] = [
       vimState.cursorStopPosition,
       vimState.cursorStartPosition,
@@ -1117,9 +1100,9 @@ class CommandGoToOtherEndOfHighlightedText extends BaseCommand {
 class CommandGoToOtherSideOfHighlightedText extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['O'];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (vimState.currentMode === Mode.VisualBlock) {
       [vimState.cursorStartPosition, vimState.cursorStopPosition] = [
         new vscode.Position(
@@ -1142,14 +1125,14 @@ export class CommandUndo extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['u'];
   // we support a count to undo by this setting
-  runsOnceForEachCountPrefix = true;
-  runsOnceForEveryCursor() {
+  override runsOnceForEachCountPrefix = true;
+  override runsOnceForEveryCursor() {
     return false;
   }
   // to prevent undo for accidental key chords like: cu, du...
-  mustBeFirstKey = true;
+  override mustBeFirstKey = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const newPosition = await vimState.historyTracker.goBackHistoryStep();
 
     if (newPosition === undefined) {
@@ -1166,12 +1149,12 @@ export class CommandUndo extends BaseCommand {
 class CommandUndoOnLine extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['U'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  mustBeFirstKey = true;
+  override mustBeFirstKey = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const newPosition = await vimState.historyTracker.goBackHistoryStepsOnLine();
 
     if (newPosition !== undefined) {
@@ -1186,11 +1169,11 @@ class CommandUndoOnLine extends BaseCommand {
 class CommandRedo extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['<C-r>'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const newPosition = await vimState.historyTracker.goForwardHistoryStep();
 
     if (newPosition === undefined) {
@@ -1207,12 +1190,12 @@ class CommandRedo extends BaseCommand {
 class CommandDeleteToLineEnd extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['D'];
-  canBeRepeatedWithDot = true;
-  runsOnceForEveryCursor() {
+  override canBeRepeatedWithDot = true;
+  override runsOnceForEveryCursor() {
     return true;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (position.isLineEnd()) {
       return;
     }
@@ -1230,7 +1213,7 @@ export class CommandYankFullLine extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['Y'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const linesDown = (vimState.recordedState.count || 1) - 1;
     const start = position.getLineBegin();
     const end = position.getDown(linesDown).getLeft();
@@ -1245,9 +1228,9 @@ export class CommandYankFullLine extends BaseCommand {
 class CommandChangeToLineEnd extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['C'];
-  runsOnceForEachCountPrefix = false;
+  override runsOnceForEachCountPrefix = false;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const count = vimState.recordedState.count || 1;
 
     await new operator.ChangeOperator(this.multicursorIndex).run(
@@ -1265,9 +1248,9 @@ class CommandChangeToLineEnd extends BaseCommand {
 class CommandClearLine extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['S'];
-  runsOnceForEachCountPrefix = false;
+  override runsOnceForEachCountPrefix = false;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await new operator.ChangeOperator(this.multicursorIndex).runRepeat(
       vimState,
       position,
@@ -1276,11 +1259,11 @@ class CommandClearLine extends BaseCommand {
   }
 
   // Don't clash with sneak
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return super.doesActionApply(vimState, keysPressed) && !configuration.sneak;
   }
 
-  public couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return super.couldActionApply(vimState, keysPressed) && !configuration.sneak;
   }
 }
@@ -1290,7 +1273,7 @@ class CommandExitVisualMode extends BaseCommand {
   modes = [Mode.Visual];
   keys = ['v'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Normal);
   }
 }
@@ -1299,9 +1282,9 @@ class CommandExitVisualMode extends BaseCommand {
 class CommandVisualMode extends BaseCommand {
   modes = [Mode.Normal, Mode.VisualLine, Mode.VisualBlock];
   keys = ['v'];
-  isCompleteAction = false;
+  override isCompleteAction = false;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (vimState.currentMode === Mode.Normal && vimState.recordedState.count > 1) {
       vimState.cursorStopPosition = position.getRight(vimState.recordedState.count - 1);
     }
@@ -1314,7 +1297,7 @@ class CommandReselectVisual extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['g', 'v'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // Try to restore selection only if valid
     if (vimState.lastVisualSelection !== undefined) {
       if (vimState.lastVisualSelection.end.line <= vimState.document.lineCount - 1) {
@@ -1331,7 +1314,7 @@ class CommandVisualBlockMode extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine];
   keys = [['<C-v>'], ['<C-q>']];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (vimState.currentMode === Mode.Normal && vimState.recordedState.count > 1) {
       vimState.cursorStopPosition = position.getRight(vimState.recordedState.count - 1);
     }
@@ -1344,7 +1327,7 @@ class CommandExitVisualBlockMode extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = [['<C-v>'], ['<C-q>']];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Normal);
   }
 }
@@ -1354,7 +1337,7 @@ class CommandVisualLineMode extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualBlock];
   keys = ['V'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (vimState.currentMode === Mode.Normal && vimState.recordedState.count > 1) {
       vimState.cursorStopPosition = position.getDown(vimState.recordedState.count - 1);
     }
@@ -1367,7 +1350,7 @@ class CommandExitVisualLineMode extends BaseCommand {
   modes = [Mode.VisualLine];
   keys = ['V'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Normal);
   }
 }
@@ -1376,9 +1359,9 @@ class CommandExitVisualLineMode extends BaseCommand {
 class CommandOpenFile extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual];
   keys = ['g', 'f'];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     let fullFilePath: string;
     if (vimState.currentMode === Mode.Visual) {
       fullFilePath = vimState.document.getText(vimState.editor.selection);
@@ -1409,9 +1392,9 @@ class CommandOpenFile extends BaseCommand {
 class CommandGoToDefinition extends BaseCommand {
   modes = [Mode.Normal];
   keys = [['g', 'd'], ['<C-]>']];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vscode.commands.executeCommand('editor.action.goToDeclaration');
 
     if (vimState.editor === vscode.window.activeTextEditor) {
@@ -1426,7 +1409,7 @@ class CommandOpenLink extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['g', 'x'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vscode.commands.executeCommand('editor.action.openLink');
   }
 }
@@ -1435,9 +1418,9 @@ class CommandOpenLink extends BaseCommand {
 class CommandGoBackInChangelist extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['g', ';'];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const prevPos = vimState.historyTracker.prevChangeInChangeList();
 
     if (prevPos instanceof VimError) {
@@ -1452,9 +1435,9 @@ class CommandGoBackInChangelist extends BaseCommand {
 class CommandGoForwardInChangelist extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['g', ','];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const nextPos = vimState.historyTracker.nextChangeInChangeList();
 
     if (nextPos instanceof VimError) {
@@ -1472,9 +1455,9 @@ class CommandGoStartPrevOperatedText extends BaseCommand {
     ['`', '['],
     ["'", '['],
   ];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const lastPos = vimState.historyTracker.getLastChangeStartPosition();
     if (lastPos !== undefined) {
       vimState.cursorStopPosition = lastPos;
@@ -1489,9 +1472,9 @@ class CommandGoEndPrevOperatedText extends BaseCommand {
     ['`', ']'],
     ["'", ']'],
   ];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const lastPos = vimState.historyTracker.getLastChangeEndPosition();
     if (lastPos !== undefined) {
       vimState.cursorStopPosition = lastPos;
@@ -1506,9 +1489,9 @@ class CommandGoLastChange extends BaseCommand {
     ['`', '.'],
     ["'", '.'],
   ];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const lastPos = vimState.historyTracker.getLastHistoryStartPosition();
     if (lastPos !== undefined) {
       vimState.cursorStopPosition = lastPos;
@@ -1521,8 +1504,8 @@ export class CommandInsertAtLastChange extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['g', 'i'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
-    vimState.cursorStopPosition =
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
+    vimState.cursorStopPosition = vimState.cursorStartPosition =
       vimState.historyTracker.getLastChangeEndPosition() ?? new Position(0, 0);
 
     await vimState.setCurrentMode(Mode.Insert);
@@ -1534,24 +1517,22 @@ export class CommandInsertAtFirstCharacter extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['I'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.cursorStopPosition = TextEditor.getFirstNonWhitespaceCharOnLine(
-      vimState.document,
-      position.line
-    );
+    vimState.cursorStopPosition = vimState.cursorStartPosition =
+      TextEditor.getFirstNonWhitespaceCharOnLine(vimState.document, position.line);
   }
 }
 
 @RegisterAction
 export class CommandInsertAtLineBegin extends BaseCommand {
   modes = [Mode.Normal];
-  mustBeFirstKey = true;
+  override mustBeFirstKey = true;
   keys = ['g', 'I'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.cursorStopPosition = position.getLineBegin();
+    vimState.cursorStopPosition = vimState.cursorStartPosition = position.getLineBegin();
   }
 }
 
@@ -1560,12 +1541,12 @@ export class CommandInsertAfterCursor extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['a'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.cursorStopPosition = position.getRight();
+    vimState.cursorStopPosition = vimState.cursorStartPosition = position.getRight();
   }
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     // Only allow this command to be prefixed with a count or nothing, no other actions or operators before
     if (!vimState.recordedState.actionsRun.every((action) => action instanceof CommandNumber)) {
       return false;
@@ -1580,9 +1561,9 @@ export class CommandInsertAtLineEnd extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['A'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.cursorStopPosition = position.getLineEnd();
+    vimState.cursorStopPosition = vimState.cursorStartPosition = position.getLineEnd();
   }
 }
 
@@ -1590,11 +1571,11 @@ export class CommandInsertAtLineEnd extends BaseCommand {
 class CommandInsertNewLineAbove extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['O'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async execCount(position: Position, vimState: VimState): Promise<void> {
+  public override async execCount(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
     const count = vimState.recordedState.count || 1;
 
@@ -1612,7 +1593,6 @@ class CommandInsertNewLineAbove extends BaseCommand {
     }
     vimState.cursors = vimState.cursors.reverse();
     vimState.isFakeMultiCursor = true;
-    vimState.isMultiCursor = true;
   }
 }
 
@@ -1620,11 +1600,11 @@ class CommandInsertNewLineAbove extends BaseCommand {
 class CommandInsertNewLineBefore extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['o'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async execCount(position: Position, vimState: VimState): Promise<void> {
+  public override async execCount(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
     const count = vimState.recordedState.count || 1;
 
@@ -1651,7 +1631,6 @@ class CommandInsertNewLineBefore extends BaseCommand {
     }
     vimState.cursors = vimState.cursors.reverse();
     vimState.isFakeMultiCursor = true;
-    vimState.isMultiCursor = true;
   }
 }
 
@@ -1660,11 +1639,11 @@ class CommandNavigateBack extends BaseCommand {
   modes = [Mode.Normal];
   keys = [['<C-o>'], ['<C-t>']];
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await globalState.jumpTracker.jumpBack(position, vimState);
   }
 }
@@ -1674,11 +1653,11 @@ class CommandNavigateForward extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['<C-i>'];
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await globalState.jumpTracker.jumpForward(position, vimState);
   }
 }
@@ -1687,12 +1666,12 @@ class CommandNavigateForward extends BaseCommand {
 class CommandNavigateLast extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['`', '`'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await globalState.jumpTracker.jumpBack(position, vimState);
   }
 }
@@ -1701,11 +1680,11 @@ class CommandNavigateLast extends BaseCommand {
 class CommandNavigateLastBOL extends BaseCommand {
   modes = [Mode.Normal];
   keys = ["'", "'"];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  isJump = true;
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  override isJump = true;
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const lastJump = globalState.jumpTracker.end;
     if (lastJump == null) {
       // This command goes to the last jump, and there is no previous jump, so there's nothing to do.
@@ -1730,7 +1709,7 @@ class CommandQuit extends BaseCommand {
     ['<C-w>', '<C-c>'],
   ];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     new QuitCommand({}).execute(vimState);
   }
 }
@@ -1743,7 +1722,7 @@ class CommandOnly extends BaseCommand {
     ['<C-w>', '<C-o>'],
   ];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     new OnlyCommand().execute(vimState);
   }
 }
@@ -1756,9 +1735,9 @@ class MoveToRightPane extends BaseCommand {
     ['<C-w>', '<right>'],
     ['<C-w>', '<C-l>'],
   ];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'workbench.action.navigateRight',
       args: {},
@@ -1774,9 +1753,9 @@ class MoveToLowerPane extends BaseCommand {
     ['<C-w>', '<down>'],
     ['<C-w>', '<C-j>'],
   ];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'workbench.action.navigateDown',
       args: {},
@@ -1792,9 +1771,9 @@ class MoveToUpperPane extends BaseCommand {
     ['<C-w>', '<up>'],
     ['<C-w>', '<C-k>'],
   ];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'workbench.action.navigateUp',
       args: {},
@@ -1810,9 +1789,9 @@ class MoveToLeftPane extends BaseCommand {
     ['<C-w>', '<left>'],
     ['<C-w>', '<C-h>'],
   ];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'workbench.action.navigateLeft',
       args: {},
@@ -1827,9 +1806,9 @@ class CycleThroughPanes extends BaseCommand {
     ['<C-w>', '<C-w>'],
     ['<C-w>', 'w'],
   ];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'workbench.action.navigateEditorGroups',
       args: {},
@@ -1845,7 +1824,7 @@ class VerticalSplit extends BaseCommand {
     ['<C-w>', '<C-v>'],
   ];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'workbench.action.splitEditor',
       args: {},
@@ -1861,7 +1840,7 @@ class OrthogonalSplit extends BaseCommand {
     ['<C-w>', '<C-s>'],
   ];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'workbench.action.splitEditorOrthogonal',
       args: {},
@@ -1874,7 +1853,7 @@ class EvenPaneWidths extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine];
   keys = ['<C-w>', '='];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     vimState.postponedCodeViewChanges.push({
       command: 'workbench.action.evenEditorWidths',
       args: {},
@@ -1886,9 +1865,9 @@ class EvenPaneWidths extends BaseCommand {
 class CommandTabNext extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine];
   keys = [['g', 't'], ['<C-pagedown>']];
-  runsOnceForEachCountPrefix = false;
+  override runsOnceForEachCountPrefix = false;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // gt behaves differently than gT and goes to an absolute index tab
     // (1-based), it does NOT iterate over next tabs
     if (vimState.recordedState.count > 0) {
@@ -1909,9 +1888,9 @@ class CommandTabNext extends BaseCommand {
 class CommandTabPrevious extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine];
   keys = [['g', 'T'], ['<C-pageup>']];
-  runsOnceForEachCountPrefix = true;
+  override runsOnceForEachCountPrefix = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     new TabCommand({
       tab: Tab.Previous,
       count: 1,
@@ -1923,9 +1902,9 @@ class CommandTabPrevious extends BaseCommand {
 export class ActionDeleteChar extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['x'];
-  canBeRepeatedWithDot = true;
+  override canBeRepeatedWithDot = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // If line is empty, do nothing
     if (vimState.document.lineAt(position).text.length === 0) {
       return;
@@ -1947,10 +1926,10 @@ export class ActionDeleteChar extends BaseCommand {
 export class ActionDeleteCharWithDeleteKey extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['<Del>'];
-  runsOnceForEachCountPrefix = true;
-  canBeRepeatedWithDot = true;
+  override runsOnceForEachCountPrefix = true;
+  override canBeRepeatedWithDot = true;
 
-  public async execCount(position: Position, vimState: VimState): Promise<void> {
+  public override async execCount(position: Position, vimState: VimState): Promise<void> {
     // If <del> has a count in front of it, then <del> deletes a character
     // off the count. Therefore, 100<del>x, would apply 'x' 10 times.
     // http://vimdoc.sourceforge.net/htmldoc/change.html#<Del>
@@ -1971,9 +1950,9 @@ export class ActionDeleteCharWithDeleteKey extends BaseCommand {
 export class ActionDeleteLastChar extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['X'];
-  canBeRepeatedWithDot = true;
+  override canBeRepeatedWithDot = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (position.character === 0) {
       return;
     }
@@ -1992,8 +1971,8 @@ export class ActionDeleteLastChar extends BaseCommand {
 class ActionJoin extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['J'];
-  canBeRepeatedWithDot = true;
-  runsOnceForEachCountPrefix = false;
+  override canBeRepeatedWithDot = true;
+  override runsOnceForEachCountPrefix = false;
 
   private firstNonWhitespaceIndex(str: string): number {
     for (let i = 0, len = str.length; i < len; i++) {
@@ -2112,7 +2091,7 @@ class ActionJoin extends BaseCommand {
     }
   }
 
-  public async execCount(position: Position, vimState: VimState): Promise<void> {
+  public override async execCount(position: Position, vimState: VimState): Promise<void> {
     const cursorsToIterateOver = vimState.cursors
       .map((x) => new Cursor(x.start, x.stop))
       .sort((a, b) =>
@@ -2149,7 +2128,7 @@ class ActionJoinVisualMode extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine];
   keys = ['J'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const [start, end] = sorted(vimState.editor.selection.start, vimState.editor.selection.end);
 
     /**
@@ -2165,7 +2144,7 @@ class ActionJoinVisualBlockMode extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = ['J'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const [start, end] = sorted(vimState.cursorStartPosition, vimState.cursorStopPosition);
 
     vimState.currentRegisterMode = RegisterMode.CharacterWise;
@@ -2177,11 +2156,11 @@ class ActionJoinVisualBlockMode extends BaseCommand {
 class ActionJoinNoWhitespace extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['g', 'J'];
-  canBeRepeatedWithDot = true;
+  override canBeRepeatedWithDot = true;
 
   // gJ is essentially J without the edge cases. ;-)
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     if (position.line === vimState.document.lineCount - 1) {
       return; // TODO: bell
     }
@@ -2218,7 +2197,7 @@ class ActionJoinNoWhitespaceVisualMode extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
   keys = ['g', 'J'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const [start, end] = sorted(vimState.cursorStartPosition, vimState.cursorStopPosition);
     const count = start.line === end.line ? 1 : end.line - start.line;
     await new ActionJoinNoWhitespace().execJoin(count, start, vimState);
@@ -2230,10 +2209,10 @@ class ActionJoinNoWhitespaceVisualMode extends BaseCommand {
 class ActionReplaceCharacter extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['r', '<character>'];
-  canBeRepeatedWithDot = true;
-  runsOnceForEachCountPrefix = false;
+  override canBeRepeatedWithDot = true;
+  override runsOnceForEachCountPrefix = false;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const timesToRepeat = vimState.recordedState.count || 1;
     const toReplace = this.keysPressed[1];
 
@@ -2263,10 +2242,7 @@ class ActionReplaceCharacter extends BaseCommand {
     }
 
     if (toReplace === '<tab>') {
-      vimState.recordedState.transformer.addTransformation({
-        type: 'deleteRange',
-        range: new vscode.Range(position, endPos),
-      });
+      vimState.recordedState.transformer.delete(new vscode.Range(position, endPos));
       vimState.recordedState.transformer.addTransformation({
         type: 'tab',
         cursorIndex: this.multicursorIndex,
@@ -2276,10 +2252,7 @@ class ActionReplaceCharacter extends BaseCommand {
       // A newline replacement always inserts exactly one newline (regardless
       // of count prefix) and puts the cursor on the next line.
       // We use `insertTextVSCode` so we get the right indentation
-      vimState.recordedState.transformer.addTransformation({
-        type: 'deleteRange',
-        range: new vscode.Range(position, endPos),
-      });
+      vimState.recordedState.transformer.delete(new vscode.Range(position, endPos));
       vimState.recordedState.transformer.addTransformation({
         type: 'insertTextVSCode',
         text: '\n',
@@ -2299,12 +2272,12 @@ class ActionReplaceCharacter extends BaseCommand {
 class ActionReplaceCharacterVisual extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine];
   keys = ['r', '<character>'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  canBeRepeatedWithDot = true;
+  override canBeRepeatedWithDot = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     let toInsert = this.keysPressed[1];
 
     if (toInsert === '<tab>') {
@@ -2379,12 +2352,12 @@ class ActionReplaceCharacterVisual extends BaseCommand {
 class ActionReplaceCharacterVisualBlock extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = ['r', '<character>'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  canBeRepeatedWithDot = true;
+  override canBeRepeatedWithDot = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     let toInsert = this.keysPressed[1];
 
     if (toInsert === '<tab>') {
@@ -2417,12 +2390,12 @@ class ActionReplaceCharacterVisualBlock extends BaseCommand {
 class ActionDeleteVisualBlock extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = [['d'], ['x'], ['X']];
-  canBeRepeatedWithDot = true;
-  runsOnceForEveryCursor() {
+  override canBeRepeatedWithDot = true;
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const lines: string[] = [];
 
     for (const { line, start, end } of TextEditor.iterateLinesInBlock(vimState)) {
@@ -2452,12 +2425,12 @@ class ActionDeleteVisualBlock extends BaseCommand {
 class ActionShiftDVisualBlock extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = ['D'];
-  canBeRepeatedWithDot = true;
-  runsOnceForEveryCursor() {
+  override canBeRepeatedWithDot = true;
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     for (const { start } of TextEditor.iterateLinesInBlock(vimState)) {
       vimState.recordedState.transformer.addTransformation({
         type: 'deleteRange',
@@ -2480,13 +2453,12 @@ class ActionShiftDVisualBlock extends BaseCommand {
 class ActionGoToInsertVisualBlockMode extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = ['I'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.isMultiCursor = true;
     vimState.isFakeMultiCursor = true;
 
     for (const { line, start } of TextEditor.iterateLinesInBlock(vimState)) {
@@ -2503,11 +2475,11 @@ class ActionGoToInsertVisualBlockMode extends BaseCommand {
 class ActionChangeInVisualBlockMode extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = [['c'], ['s']];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     for (const { start, end } of TextEditor.iterateLinesInBlock(vimState)) {
       vimState.recordedState.transformer.addTransformation({
         type: 'deleteRange',
@@ -2517,7 +2489,6 @@ class ActionChangeInVisualBlockMode extends BaseCommand {
     }
 
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.isMultiCursor = true;
     vimState.isFakeMultiCursor = true;
 
     for (const { start } of TextEditor.iterateLinesInBlock(vimState)) {
@@ -2531,11 +2502,11 @@ class ActionChangeInVisualBlockMode extends BaseCommand {
 class ActionChangeToEOLInVisualBlockMode extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = ['C'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const cursors: Cursor[] = [];
     for (const cursor of vimState.cursors) {
       for (const { start, end } of TextEditor.iterateLinesInBlock(vimState, cursor)) {
@@ -2550,13 +2521,12 @@ class ActionChangeToEOLInVisualBlockMode extends BaseCommand {
     vimState.cursors = cursors;
 
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.isMultiCursor = true;
     vimState.isFakeMultiCursor = true;
   }
 }
 
 abstract class ActionGoToInsertVisualLineModeCommand extends BaseCommand {
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
@@ -2566,9 +2536,8 @@ abstract class ActionGoToInsertVisualLineModeCommand extends BaseCommand {
     selectionEnd: Position
   ): Cursor;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.isMultiCursor = true;
     vimState.isFakeMultiCursor = true;
 
     const resultingCursors: Cursor[] = [];
@@ -2661,11 +2630,11 @@ class ActionGoToInsertVisualModeAppend extends ActionGoToInsertVisualLineModeCom
 class ActionGoToInsertVisualBlockModeAppend extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = ['A'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const newCursors: Cursor[] = [];
     for (const cursor of vimState.cursors) {
       const [start, end] = sorted(cursor.start, cursor.stop);
@@ -2690,7 +2659,6 @@ class ActionGoToInsertVisualBlockModeAppend extends BaseCommand {
 
     vimState.cursors = newCursors;
     await vimState.setCurrentMode(Mode.Insert);
-    vimState.isMultiCursor = true;
     vimState.isFakeMultiCursor = true;
   }
 }
@@ -2700,7 +2668,7 @@ class ActionDeleteLineVisualMode extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine];
   keys = ['X'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const [start, end] = sorted(vimState.cursorStartPosition, vimState.cursorStopPosition);
     await new operator.DeleteOperator(this.multicursorIndex).run(
       vimState,
@@ -2715,11 +2683,11 @@ class ActionChangeLineVisualModeS extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine];
   keys = ['S'];
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return !configuration.surround && super.doesActionApply(vimState, keysPressed);
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     return new ActionChangeLineVisualMode().exec(position, vimState);
   }
 }
@@ -2729,7 +2697,7 @@ class ActionChangeLineVisualMode extends BaseCommand {
   modes = [Mode.Visual, Mode.VisualLine];
   keys = [['C'], ['R']];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const [start, end] = sorted(vimState.cursorStartPosition, vimState.cursorStopPosition);
     await new operator.ChangeOperator(this.multicursorIndex).run(
       vimState,
@@ -2744,7 +2712,7 @@ class ActionChangeLineVisualBlockMode extends BaseCommand {
   modes = [Mode.VisualBlock];
   keys = [['R'], ['S']];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     return new ActionChangeLineVisualMode().exec(position, vimState);
   }
 }
@@ -2754,7 +2722,7 @@ class ActionChangeChar extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['s'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await new operator.ChangeOperator(this.multicursorIndex).run(
       vimState,
       position,
@@ -2763,7 +2731,7 @@ class ActionChangeChar extends BaseCommand {
   }
 
   // Don't clash with surround or sneak modes!
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return (
       super.doesActionApply(vimState, keysPressed) &&
       !configuration.sneak &&
@@ -2771,7 +2739,7 @@ class ActionChangeChar extends BaseCommand {
     );
   }
 
-  public couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return (
       super.couldActionApply(vimState, keysPressed) &&
       !configuration.sneak &&
@@ -2784,8 +2752,8 @@ class ActionChangeChar extends BaseCommand {
 class ToggleCaseAndMoveForward extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['~'];
-  mustBeFirstKey = true;
-  canBeRepeatedWithDot = true;
+  override mustBeFirstKey = true;
+  override canBeRepeatedWithDot = true;
 
   private toggleCase(text: string): string {
     let newText = '';
@@ -2799,7 +2767,7 @@ class ToggleCaseAndMoveForward extends BaseCommand {
     return newText;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const count = vimState.recordedState.count || 1;
     const range = new vscode.Range(
       position,
@@ -2819,11 +2787,11 @@ class ToggleCaseAndMoveForward extends BaseCommand {
 
 abstract class IncrementDecrementNumberAction extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual, Mode.VisualLine, Mode.VisualBlock];
-  canBeRepeatedWithDot = true;
+  override canBeRepeatedWithDot = true;
   abstract offset: number;
   abstract staircase: boolean;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const ranges = this.getSearchRanges(vimState);
 
     let stepNum = 1;
@@ -2920,11 +2888,7 @@ abstract class IncrementDecrementNumberAction extends BaseCommand {
 
     const range = new vscode.Range(startPos, endPos.getRight());
 
-    vimState.recordedState.transformer.addTransformation({
-      type: 'replaceText',
-      range,
-      text: newNum,
-    });
+    vimState.recordedState.transformer.replace(range, newNum);
     if (oldLength !== newNum.length) {
       // Adjust end position according to difference in width of number-string
       endPos = new Position(endPos.line, startPos.character + newNum.length - 1);
@@ -3020,11 +2984,11 @@ class DecrementNumberStaircaseAction extends IncrementDecrementNumberAction {
 class CommandUnicodeName extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['g', 'a'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const char = vimState.document.getText(new vscode.Range(position, position.getRight()));
     const charCode = char.charCodeAt(0);
     // TODO: Handle charCode > 127 by also including <M-x>
@@ -3039,11 +3003,11 @@ class CommandUnicodeName extends BaseCommand {
 class ActionTriggerHover extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['g', 'h'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vscode.commands.executeCommand('editor.action.showHover');
   }
 }
@@ -3063,12 +3027,12 @@ class ActionTriggerHover extends BaseCommand {
 export class ActionOverrideCmdD extends BaseCommand {
   modes = [Mode.Normal, Mode.Visual];
   keys = [['<D-d>'], ['g', 'b']];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  runsOnceForEachCountPrefix = true;
+  override runsOnceForEachCountPrefix = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vscode.commands.executeCommand('editor.action.addSelectionToNextFindMatch');
     vimState.cursors = getCursorsAfterSync();
 
@@ -3084,12 +3048,12 @@ export class ActionOverrideCmdD extends BaseCommand {
 class ActionOverrideCmdDInsert extends BaseCommand {
   modes = [Mode.Insert];
   keys = ['<D-d>'];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  runsOnceForEachCountPrefix = true;
+  override runsOnceForEachCountPrefix = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // Since editor.action.addSelectionToNextFindMatch uses the selection to
     // determine where to add a word, we need to do a hack and manually set the
     // selections to the word boundaries before we make the api call.
@@ -3123,12 +3087,12 @@ class ActionOverrideCmdAltDown extends BaseCommand {
     ['<D-alt+down>'], // OSX
     ['<C-alt+down>'], // Windows
   ];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  runsOnceForEachCountPrefix = true;
+  override runsOnceForEachCountPrefix = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vscode.commands.executeCommand('editor.action.insertCursorBelow');
     vimState.cursors = getCursorsAfterSync();
   }
@@ -3141,12 +3105,12 @@ class ActionOverrideCmdAltUp extends BaseCommand {
     ['<D-alt+up>'], // OSX
     ['<C-alt+up>'], // Windows
   ];
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
-  runsOnceForEachCountPrefix = true;
+  override runsOnceForEachCountPrefix = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vscode.commands.executeCommand('editor.action.insertCursorAbove');
     vimState.cursors = getCursorsAfterSync();
   }
@@ -3157,11 +3121,11 @@ class ActionShowFileInfo extends BaseCommand {
   modes = [Mode.Normal];
   keys = ['<C-g>'];
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     reportFileInfo(position, vimState);
   }
 }
@@ -3171,11 +3135,11 @@ class WriteQuit extends BaseCommand {
   modes = [Mode.Normal];
   keys = [['Z', 'Z']];
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await new WriteQuitCommand({}).execute(vimState);
   }
 }
@@ -3185,11 +3149,11 @@ class Quit extends BaseCommand {
   modes = [Mode.Normal];
   keys = [['Z', 'Q']];
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await new QuitCommand({ bang: true }).execute(vimState);
   }
 }
@@ -3199,11 +3163,11 @@ class ActionGoToAlternateFile extends BaseCommand {
   modes = [Mode.Normal];
   keys = [['<C-6>'], ['<C-^>']];
 
-  runsOnceForEveryCursor() {
+  override runsOnceForEveryCursor() {
     return false;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const altFile = await Register.get('#');
     if (altFile === undefined || altFile.text === '') {
       StatusBar.displayError(vimState, VimError.fromCode(ErrorCode.NoAlternateFile));

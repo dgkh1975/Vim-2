@@ -216,21 +216,24 @@ suite('Mode Insert', () => {
     assertEqualLines(['  ']);
   });
 
-  test('will remove closing bracket', async () => {
+  test('<BS> removes closing bracket just inserted', async () => {
+    await modeHandler.handleMultipleKeyEvents(['i', '(']);
+
+    assertEqualLines(['()']);
+
+    await modeHandler.handleMultipleKeyEvents(['<BS>', '<Esc>']);
+
+    assertEqualLines(['']);
+  });
+
+  test('<BS> does not remove closing bracket inserted before', async () => {
     await modeHandler.handleMultipleKeyEvents(['i', '(', '<Esc>']);
 
     assertEqualLines(['()']);
 
     await modeHandler.handleMultipleKeyEvents(['a', '<BS>', '<Esc>']);
 
-    assertEqualLines(['']);
-  });
-
-  newTest({
-    title: 'Backspace works on whitespace only lines',
-    start: ['abcd', '     |    '],
-    keysPressed: 'a<BS><Esc>',
-    end: ['abcd', '   | '],
+    assertEqualLines([')']);
   });
 
   newTest({
@@ -245,6 +248,28 @@ suite('Mode Insert', () => {
     start: ['|bcd'],
     keysPressed: 'i<BS>a<Esc>',
     end: ['|abcd'],
+  });
+
+  newTest({
+    title: 'Backspace in leading whitespace 1',
+    start: ['        |    xyz'],
+    editorOptions: {
+      tabSize: 4,
+    },
+    keysPressed: 'i<BS>',
+    end: ['    |    xyz'],
+    endMode: Mode.Insert,
+  });
+
+  newTest({
+    title: 'Backspace in leading whitespace 2',
+    start: ['       |    xyz'],
+    editorOptions: {
+      tabSize: 4,
+    },
+    keysPressed: 'i<BS>',
+    end: ['    |    xyz'],
+    endMode: Mode.Insert,
   });
 
   newTest({
