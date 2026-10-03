@@ -1,7 +1,7 @@
-import { RegisterAction } from '../../base';
-import { VimState } from '../../../state/vimState';
-import { BaseMovement, failedMovement, IMovement } from '../../baseMotion';
 import { Position, TextDocument } from 'vscode';
+import { VimState } from '../../../state/vimState';
+import { RegisterAction } from '../../base';
+import { BaseMovement, failedMovement, IMovement } from '../../baseMotion';
 
 type Type = 'function' | 'class';
 type Edge = 'start' | 'end';
@@ -19,6 +19,14 @@ interface StructureElement {
   end: Position;
 }
 
+// Older browsers don't support lookbehind - in this case, use an inferior regex rather than crashing
+let supportsLookbehind = true;
+try {
+  new RegExp('(?<=x)');
+} catch {
+  supportsLookbehind = false;
+}
+
 /*
  * Utility class used to parse the lines in the document and
  * determine class and function boundaries
@@ -31,8 +39,10 @@ export class PythonDocument {
   structure: StructureElement[];
 
   static readonly reOnlyWhitespace = /\S/;
-  static readonly reLastNonWhiteSpaceCharacter = /(?<=\S)\s*$/;
-  static readonly reDefOrClass = /^\s*(def|class) /;
+  static readonly reLastNonWhiteSpaceCharacter = supportsLookbehind
+    ? new RegExp('(?<=\\S)\\s*$')
+    : /(\S)\s*$/;
+  static readonly reDefOrClass = /^\s*(?:async\s+)?(def|class) /;
 
   constructor(document: TextDocument) {
     this._document = document;
@@ -116,7 +126,7 @@ export class PythonDocument {
           // Calculate position of last non-white character)
           end: new Position(
             endLine.line,
-            endLine.text.search(PythonDocument.reLastNonWhiteSpaceCharacter) - 1
+            endLine.text.search(PythonDocument.reLastNonWhiteSpaceCharacter) - 1,
           ),
         });
       }
@@ -138,8 +148,11 @@ export class PythonDocument {
     const isDirection = direction === 'next' ? 'isAfter' : 'isBefore';
 
     // Filter function for all elements whose "edge" is in the correct "direction"
-    // relative to the cursor's position
-    const dir = (element: StructureElement) => element[edge][isDirection](position);
+    // relative to the cursor's position, excluding the current function for prev direction
+    const dir = (element: StructureElement) => {
+      const pos = element[edge];
+      return direction === 'next' ? pos.isAfter(position) : pos.line < position.line; // For prev, we want strictly before
+    };
 
     // Filter out elements from structure based on type and direction
     const elements = this.structure.filter((elem) => elem.type === type).filter(dir);
@@ -170,7 +183,7 @@ export class PythonDocument {
     position: Position,
     vimState: VimState,
     forward: boolean,
-    start: boolean
+    start: boolean,
   ): Position | IMovement {
     const direction = forward ? 'next' : 'prev';
     const edge = start ? 'start' : 'end';
@@ -188,13 +201,16 @@ abstract class BasePythonMovement extends BaseMovement {
   abstract direction: Direction;
   abstract edge: Edge;
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return (
       super.doesActionApply(vimState, keysPressed) && vimState.document.languageId === 'python'
     );
   }
 
-  public async execAction(position: Position, vimState: VimState): Promise<Position | IMovement> {
+  public override async execAction(
+    position: Position,
+    vimState: VimState,
+  ): Promise<Position | IMovement> {
     const document = vimState.document;
     return (
       new PythonDocument(document).find(this.type, this.direction, this.edge, position) ??

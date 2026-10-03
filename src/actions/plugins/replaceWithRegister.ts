@@ -1,47 +1,49 @@
+import { Position, Range } from 'vscode';
+import { PositionDiff } from '../../common/motion/position';
 import { configuration } from '../../configuration/configuration';
+import { VimError } from '../../error';
 import { Mode } from '../../mode/mode';
 import { Register, RegisterMode } from '../../register/register';
 import { VimState } from '../../state/vimState';
+import { StatusBar } from '../../statusBar';
 import { BaseOperator } from '../operator';
 import { RegisterAction } from './../base';
-import { StatusBar } from '../../statusBar';
-import { VimError, ErrorCode } from '../../error';
-import { Position, Range } from 'vscode';
-import { PositionDiff } from '../../common/motion/position';
 
 @RegisterAction
 class ReplaceOperator extends BaseOperator {
   public keys = ['g', 'r'];
   public modes = [Mode.Normal, Mode.Visual, Mode.VisualLine];
 
-  public doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override doesActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return configuration.replaceWithRegister && super.doesActionApply(vimState, keysPressed);
   }
 
-  public couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
+  public override couldActionApply(vimState: VimState, keysPressed: string[]): boolean {
     return configuration.replaceWithRegister && super.doesActionApply(vimState, keysPressed);
   }
 
   public async run(vimState: VimState, start: Position, end: Position): Promise<void> {
     const range =
       vimState.currentRegisterMode === RegisterMode.LineWise
-        ? new Range(start.getLineBegin(), end.getLineEndIncludingEOL())
+        ? new Range(start.getLineBegin(), end.getLineEnd())
         : new Range(start, end.getRight());
 
     const register = await Register.get(vimState.recordedState.registerName, this.multicursorIndex);
     if (register === undefined) {
-      StatusBar.displayError(vimState, VimError.fromCode(ErrorCode.NothingInRegister));
+      StatusBar.displayError(
+        vimState,
+        VimError.NothingInRegister(vimState.recordedState.registerName),
+      );
       return;
     }
 
     const replaceWith = register.text as string;
 
-    vimState.recordedState.transformer.addTransformation({
-      type: 'replaceText',
+    vimState.recordedState.transformer.replace(
       range,
-      text: replaceWith,
-      diff: PositionDiff.exactPosition(getCursorPosition(vimState, range, replaceWith)),
-    });
+      replaceWith,
+      PositionDiff.exactPosition(getCursorPosition(vimState, range, replaceWith)),
+    );
 
     await vimState.setCurrentMode(Mode.Normal);
   }
@@ -52,7 +54,7 @@ const getCursorPosition = (vimState: VimState, range: Range, replaceWith: string
     recordedState: { actionKeys },
   } = vimState;
   const lines = replaceWith.split('\n');
-  const wasRunAsLineAction = actionKeys.indexOf('r') === 0 && actionKeys.length === 1; // ie. grr
+  const wasRunAsLineAction = actionKeys.length === 1 && actionKeys[0] === 'r'; // ie. grr
   const registerAndRangeAreSingleLines = lines.length === 1 && range.isSingleLine;
   const singleLineAction = registerAndRangeAreSingleLines && !wasRunAsLineAction;
 

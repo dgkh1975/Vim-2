@@ -1,20 +1,20 @@
+import { Position } from 'vscode';
+import { globalState } from '../../../state/globalState';
 import { VimState } from '../../../state/vimState';
+import { TextEditor } from '../../../textEditor';
 import { configuration } from './../../../configuration/configuration';
-import { Mode, isVisualMode } from './../../../mode/mode';
-import { RegisterAction, BaseCommand } from './../../base';
+import { Mode } from './../../../mode/mode';
+import { BaseCommand, RegisterAction } from './../../base';
 import { EasyMotion } from './easymotion';
+import { MarkerGenerator } from './markerGenerator';
 import {
   EasyMotionCharMoveOpions,
   EasyMotionMoveOptionsBase,
-  EasyMotionWordMoveOpions,
   EasyMotionSearchAction,
+  EasyMotionWordMoveOpions,
   Match,
   SearchOptions,
 } from './types';
-import { globalState } from '../../../state/globalState';
-import { TextEditor } from '../../../textEditor';
-import { MarkerGenerator } from './markerGenerator';
-import { Position } from 'vscode';
 
 export interface EasymotionTrigger {
   key: string;
@@ -71,17 +71,11 @@ abstract class BaseEasyMotionCommand extends BaseCommand {
     }
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // Only execute the action if the configuration is set
     if (configuration.easymotion) {
       // Search all occurences of the character pressed
       const matches = this.getMatches(position, vimState);
-
-      // If previous mode was visual, restore visual selection
-      if (isVisualMode(vimState.easyMotion.previousMode)) {
-        vimState.cursorStartPosition = vimState.lastVisualSelection!.start;
-        vimState.cursorStopPosition = vimState.lastVisualSelection!.end;
-      }
 
       // Stop if there are no matches
       if (matches.length > 0) {
@@ -109,7 +103,7 @@ function getMatchesForString(
   position: Position,
   vimState: VimState,
   searchString: string,
-  options?: SearchOptions
+  options?: SearchOptions,
 ): Match[] {
   switch (searchString) {
     case '':
@@ -120,7 +114,7 @@ function getMatchesForString(
         vimState.document,
         position,
         new RegExp(' {1,}', 'g'),
-        options
+        options,
       );
     default:
       // Search all occurences of the character pressed
@@ -137,7 +131,7 @@ function getMatchesForString(
         vimState.document,
         position,
         new RegExp(searchString, regexFlags),
-        options
+        options,
       );
   }
 }
@@ -203,7 +197,7 @@ export class SearchByNCharCommand extends BaseEasyMotionCommand implements EasyM
       position,
       vimState,
       this.removeTrailingLineBreak(this.searchString),
-      {}
+      {},
     );
   }
 
@@ -232,7 +226,7 @@ export abstract class EasyMotionCharMoveCommandBase extends BaseCommand {
     this._action = action;
   }
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     // Only execute the action if easymotion is enabled
     if (configuration.easymotion) {
       vimState.easyMotion = new EasyMotion();
@@ -270,7 +264,7 @@ export abstract class EasyMotionWordMoveCommandBase extends BaseEasyMotionComman
   private getMatchesForWord(
     position: Position,
     vimState: VimState,
-    options?: SearchOptions
+    options?: SearchOptions,
   ): Match[] {
     const regex = this._options.jumpToAnywhere
       ? new RegExp(configuration.easymotionJumpToAnywhereRegex, 'g')
@@ -298,19 +292,19 @@ export abstract class EasyMotionLineMoveCommandBase extends BaseEasyMotionComman
   private getMatchesForLineStart(
     position: Position,
     vimState: VimState,
-    options?: SearchOptions
+    options?: SearchOptions,
   ): Match[] {
     // Search for the beginning of all non whitespace chars on each line before the cursor
     const matches = vimState.easyMotion.sortedSearch(
       vimState.document,
       position,
       new RegExp('^.', 'gm'),
-      options
+      options,
     );
     for (const match of matches) {
       match.position = TextEditor.getFirstNonWhitespaceCharOnLine(
         vimState.document,
-        match.position.line
+        match.position.line,
       );
     }
     return matches;
@@ -322,7 +316,7 @@ class EasyMotionCharInputMode extends BaseCommand {
   modes = [Mode.EasyMotionInputMode];
   keys = ['<character>'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const key = this.keysPressed[0];
     const action = vimState.easyMotion.searchAction;
     action.searchString =
@@ -342,7 +336,7 @@ class CommandEscEasyMotionCharInputMode extends BaseCommand {
   modes = [Mode.EasyMotionInputMode];
   keys = ['<Esc>'];
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     await vimState.setCurrentMode(Mode.Normal);
   }
 }
@@ -351,9 +345,9 @@ class CommandEscEasyMotionCharInputMode extends BaseCommand {
 class MoveEasyMotion extends BaseCommand {
   modes = [Mode.EasyMotionMode];
   keys = ['<character>'];
-  isJump = true;
+  override isJump = true;
 
-  public async exec(position: Position, vimState: VimState): Promise<void> {
+  public override async exec(position: Position, vimState: VimState): Promise<void> {
     const key = this.keysPressed[0];
     if (key) {
       // "nail" refers to the accumulated depth keys
@@ -362,12 +356,6 @@ class MoveEasyMotion extends BaseCommand {
 
       // Find markers starting with "nail"
       const markers = vimState.easyMotion.findMarkers(nail, true);
-
-      // If previous mode was visual, restore visual selection
-      if (isVisualMode(vimState.easyMotion.previousMode)) {
-        vimState.cursorStartPosition = vimState.lastVisualSelection!.start;
-        vimState.cursorStopPosition = vimState.lastVisualSelection!.end;
-      }
 
       if (markers.length === 1) {
         // Only one found, navigate to it

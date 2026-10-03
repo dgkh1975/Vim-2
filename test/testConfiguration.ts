@@ -2,13 +2,20 @@ import * as vscode from 'vscode';
 
 import {
   IConfiguration,
-  IDebugConfiguration,
   IHighlightedYankConfiguration,
   IKeyRemapping,
   IModeSpecificStrings,
+  ITargetsConfiguration,
 } from '../src/configuration/iconfiguration';
 
 export class Configuration implements IConfiguration {
+  constructor(overrides: Partial<IConfiguration> = {}) {
+    Object.assign(this, overrides);
+  }
+
+  [key: string]: any;
+
+  tildeop = false;
   useSystemClipboard = false;
   useCtrlKeys = false;
   overrideCopy = true;
@@ -33,18 +40,26 @@ export class Configuration implements IConfiguration {
   easymotion = false;
   easymotionMarkerBackgroundColor = '#0000';
   easymotionMarkerForegroundColorOneChar = '#ff0000';
-  easymotionMarkerForegroundColorTwoChar = '#ffa500'; // Deprecated! Use the ones bellow
   easymotionMarkerForegroundColorTwoCharFirst = '#ffb400';
   easymotionMarkerForegroundColorTwoCharSecond = '#b98300';
   easymotionIncSearchForegroundColor = '#7fbf00';
   easymotionDimColor = '#777777';
-  easymotionMarkerWidthPerChar = 8; // Deprecated! No longer needed!
   easymotionDimBackground = true;
-  easymotionMarkerFontFamily = 'Consolas'; // Deprecated! No longer needed!
-  easymotionMarkerFontSize = '14'; // Deprecated! No longer needed!
   easymotionMarkerFontWeight = 'bold';
-  easymotionMarkerMargin = 0; // Deprecated! No longer needed!
   easymotionKeys = 'hklyuiopnm,qwertzxcvbasdgjf;';
+  easymotionJumpToAnywhereRegex = '\\b[A-Za-z0-9]|[A-Za-z0-9]\\b|_.|#.|[a-z][A-Z]';
+
+  targets: ITargetsConfiguration = {
+    enable: false,
+    bracketObjects: {
+      enable: true,
+    },
+    smartQuotes: {
+      enable: false,
+      breakThroughLines: true,
+      aIncludesSurroundingSpaces: true,
+    },
+  };
   autoSwitchInputMethod = {
     enable: false,
     defaultIM: '',
@@ -52,13 +67,15 @@ export class Configuration implements IConfiguration {
     obtainIMCmd: '',
   };
   timeout = 1000;
-  maxmapdepth = 1000;
+  maxmapdepth = 100;
   showcmd = true;
   showmodename = true;
   leader = '//';
   history = 50;
   incsearch = true;
+  inccommand = '' as const;
   startInInsertMode = false;
+  startInInsertModeSchemes = ['comment'];
   statusBarColorControl = false;
   statusBarColors: IModeSpecificStrings<string | string[]> = {
     normal: ['#8FBCBB', '#434C5E'],
@@ -68,13 +85,12 @@ export class Configuration implements IConfiguration {
     visualblock: '#A3BE8C',
     replace: '#D08770',
   };
-  debug: IDebugConfiguration = {
-    silent: false,
-    loggingLevelForAlert: 'error',
-    loggingLevelForConsole: 'warn',
-  };
   searchHighlightColor = 'rgba(150, 150, 255, 0.3)';
   searchHighlightTextColor = '';
+  searchMatchColor = 'rgba(255, 150, 150, 0.3)';
+  searchMatchTextColor = '';
+  substitutionColor = 'rgba(100, 255, 150, 0.3)';
+  substitutionTextColor = '';
   highlightedyank: IHighlightedYankConfiguration = {
     enable: false,
     color: 'rgba(250, 240, 170, 0.5)',
@@ -84,9 +100,11 @@ export class Configuration implements IConfiguration {
   tabstop = 2;
   editorCursorStyle = vscode.TextEditorCursorStyle.Line;
   expandtab = true;
+  // eslint-disable-next-line id-denylist
   number = true;
   relativenumber = false;
-  iskeyword = '/\\()"\':,.;<>~!@#$%^&*|+=[]{}`?-';
+  iskeyword = ''; // Use `editor.wordSeparators`
+  matchpairs = '(:),{:},[:]';
   visualstar = false;
   mouseSelectionGoesIntoVisualMode = true;
   changeWordIncludesWhitespace = false;
@@ -131,6 +149,12 @@ export class Configuration implements IConfiguration {
   digraphs = {};
   wrapscan = true;
   scroll = 20;
+  scrolloff = 5;
   startofline = true;
   showMarksInGutter = true;
+  shell = '';
+  handleKeys = {
+    '<C-d>': true,
+  };
+  langmap = '';
 }

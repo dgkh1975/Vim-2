@@ -1,16 +1,19 @@
-import { cleanUpWorkspace, setupWorkspace } from './../testUtils';
-import { Configuration } from '../testConfiguration';
+import {
+  CommandSurroundAddSurroundingFunction,
+  CommandSurroundAddSurroundingTag,
+} from '../../src/actions/plugins/surround';
 import { newTest } from '../testSimplifier';
-import { CommandSurroundAddSurroundingTag } from '../../src/actions/plugins/surround';
+import { setupWorkspace } from './../testUtils';
 
 suite('surround plugin', () => {
-  setup(async () => {
-    const configuration = new Configuration();
-    configuration.surround = true;
-    await setupWorkspace(configuration, '.js');
+  suiteSetup(async () => {
+    await setupWorkspace({
+      config: {
+        surround: true,
+      },
+      fileExtension: '.js',
+    });
   });
-
-  teardown(cleanUpWorkspace);
 
   newTest({
     title: "'ysiw)' surrounds word without space",
@@ -126,6 +129,78 @@ suite('surround plugin', () => {
   });
 
   newTest({
+    title: "'ysiwf' surrounds word with function",
+    start: ['first li|ne test'],
+    keysPressed: 'ysiwf',
+    end: ['first |print(line) test'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'print',
+    },
+  });
+
+  newTest({
+    title: 'surround word with function and repeat',
+    start: ['first li|ne test'],
+    keysPressed: 'ysiwfW.',
+    end: ['first print(line) |print(test)'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'print',
+    },
+  });
+
+  newTest({
+    title: "'ysiwF' surrounds word with function with space",
+    start: ['first li|ne test'],
+    keysPressed: 'ysiwF',
+    end: ['first |print( line ) test'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'print',
+    },
+  });
+
+  newTest({
+    title: 'surround word with function with space and repeat',
+    start: ['first li|ne test'],
+    keysPressed: 'ysiwFWWW.',
+    end: ['first print( line ) |print( test )'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'print',
+    },
+  });
+
+  newTest({
+    title: "'ysiw<C-f>' surrounds word and function with parentheses",
+    start: ['first li|ne test'],
+    keysPressed: 'ysiw<C-f>',
+    end: ['first |(print line) test'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'print',
+    },
+  });
+
+  newTest({
+    title: 'surround word and function with pathentheses and repeat',
+    start: ['first li|ne test'],
+    keysPressed: 'ysiw<C-f>WW.',
+    end: ['first (print line) |(print test)'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'print',
+    },
+  });
+
+  newTest({
     title: "'yss)' surrounds entire line respecting whitespace",
     start: ['foo', '    foob|ar  '],
     keysPressed: 'yss)',
@@ -204,6 +279,42 @@ suite('surround plugin', () => {
       stubClass: CommandSurroundAddSurroundingTag,
       methodName: 'readTag',
       returnValue: 'abc',
+    },
+  });
+
+  newTest({
+    title: 'change surround to function',
+    start: ['first {li|ne} test'],
+    keysPressed: 'cs}f',
+    end: ['first hello(li|ne) test'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'hello',
+    },
+  });
+
+  newTest({
+    title: 'change surround to function with space',
+    start: ['first (li|ne) test'],
+    keysPressed: 'cs)F',
+    end: ['first hello( li|ne ) test'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'hello',
+    },
+  });
+
+  newTest({
+    title: 'change surround to function surrounded by parentheses',
+    start: ['first <tag>li|ne</tag> test'],
+    keysPressed: 'cst<C-f>',
+    end: ['first (hello li|ne) test'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'hello',
     },
   });
 
@@ -346,6 +457,18 @@ suite('surround plugin', () => {
   });
 
   newTest({
+    title: 'change surround with tags with kebab case names',
+    start: ['<custom-tag>|</custom-tag>'],
+    keysPressed: 'cstt',
+    end: ['<h1>|</h1>'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingTag,
+      methodName: 'readTag',
+      returnValue: 'h1',
+    },
+  });
+
+  newTest({
     title: 'change surround with tags that contain an attribute and remove them',
     start: ['<h2 test class="foo">b|ar</h2>'],
     keysPressed: 'cstt',
@@ -371,14 +494,14 @@ suite('surround plugin', () => {
     title: "'S)' surrounds visual selection without space",
     start: ['first li|ne test'],
     keysPressed: 'viwS)',
-    end: ['first (li|ne) test'],
+    end: ['first (l|ine) test'],
   });
 
   newTest({
     title: "'S(' surrounds visual selection with space",
     start: ['first li|ne test'],
     keysPressed: 'viwS(',
-    end: ['first ( l|ine ) test'],
+    end: ['first ( |line ) test'],
   });
 
   newTest({
@@ -394,6 +517,18 @@ suite('surround plugin', () => {
       stubClass: CommandSurroundAddSurroundingTag,
       methodName: 'readTag',
       returnValue: 'div',
+    },
+  });
+
+  newTest({
+    title: "'VStt' surrounds selection and correctly trims class attribute in closing tag",
+    start: ['first li|ne test'],
+    keysPressed: 'VStt',
+    end: ['<div class="test">', 'first line test', '|</div>'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingTag,
+      methodName: 'readTag',
+      returnValue: 'div class="test"',
     },
   });
 
@@ -423,48 +558,84 @@ suite('surround plugin', () => {
     },
   });
 
-  // multi cursor tests
-
   newTest({
-    title: 'visual surround with multicursor',
-    start: ['one |two three, one two three'],
-    keysPressed: 'gbgb' + 'S)' + '<esc>' + '0', // 0: fix cursor pos, see above
-    end: ['|one (two) three, one (two) three'],
+    title: "'Sfcall' surrounds visual line selection with call()",
+    start: ['first', 'sec|ond', 'third'],
+    keysPressed: 'VSf',
+    end: ['first', 'call(', 'second', '|)', 'third'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'call',
+    },
   });
 
   newTest({
-    title: 'yank surround with multicursor',
-    start: ['one |two three, one two three'],
-    // gbgbv results in two cursors in normal mode
-    keysPressed: 'gbgbv' + 'ysiw)' + '<esc>',
-    end: ['one |(two) three, one (two) three'],
+    title: "'SFcall' surrounds visual line selection with call(  )",
+    start: ['first', 'sec|ond', 'third'],
+    keysPressed: 'VSF',
+    end: ['first', 'call( ', 'second', '| )', 'third'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'call',
+    },
   });
 
   newTest({
-    title: 'yank surround with multicursor and repeat',
-    start: ['one |two three, one two three'],
-    keysPressed: 'gbgbv' + 'ysiw)' + 'W.' + '<esc>',
-    end: ['one (two) |(three), one (two) (three)'],
+    title: "'S<C-f>call' surrounds visual line selection with (call )",
+    start: ['first', 'sec|ond', 'third'],
+    keysPressed: 'VS<C-f>',
+    end: ['first', '(call ', 'second', '|)', 'third'],
+    stub: {
+      stubClass: CommandSurroundAddSurroundingFunction,
+      methodName: 'readFunction',
+      returnValue: 'call',
+    },
   });
 
-  newTest({
-    title: 'delete surround with multicursor',
-    start: ['one (tw|o) three, one (two) three'],
-    keysPressed: 'gbgbv' + 'ds)' + '<esc>',
-    end: ['one tw|o three, one two three'],
-  });
+  suite('multicursor', () => {
+    newTest({
+      title: 'visual surround with multicursor',
+      start: ['one |two three, one two three'],
+      keysPressed: 'gbgb' + 'S)' + '<esc>' + '0', // 0: fix cursor pos, see above
+      end: ['|one (two) three, one (two) three'],
+    });
 
-  newTest({
-    title: 'delete surround with multicursor and repeat',
-    start: ['one (tw|o) (three), one (two) (three)'],
-    keysPressed: 'gbgbv' + 'ds)' + 'W.' + '<esc>',
-    end: ['one two |three, one two three'],
-  });
+    newTest({
+      title: 'yank surround with multicursor',
+      start: ['one |two three, one two three'],
+      // gbgbv results in two cursors in normal mode
+      keysPressed: 'gbgbv' + 'ysiw)' + '<esc>',
+      end: ['one |(two) three, one |(two) three'],
+    });
 
-  newTest({
-    title: 'change surround with multicursor',
-    start: ['one (tw|o) three, one (two) three'],
-    keysPressed: 'gbgbv' + 'cs)[' + '<esc>',
-    end: ['one [ tw|o ] three, one [ two ] three'],
+    newTest({
+      title: 'yank surround with multicursor and repeat',
+      start: ['one |two three, one two three'],
+      keysPressed: 'gbgbv' + 'ysiw)' + 'W.' + '<esc>',
+      end: ['one (two) |(three), one (two) |(three)'],
+    });
+
+    newTest({
+      title: 'delete surround with multicursor',
+      start: ['one (tw|o) three, one (two) three'],
+      keysPressed: 'gbgbv' + 'ds)' + '<esc>',
+      end: ['one tw|o three, one tw|o three'],
+    });
+
+    newTest({
+      title: 'delete surround with multicursor and repeat',
+      start: ['one (tw|o) (three), one (two) (three)'],
+      keysPressed: 'gbgbv' + 'ds)' + 'W.' + '<esc>',
+      end: ['one two |three, one two |three'],
+    });
+
+    newTest({
+      title: 'change surround with multicursor',
+      start: ['one (tw|o) three, one (two) three'],
+      keysPressed: 'gbgbv' + 'cs)[' + '<esc>',
+      end: ['one [ tw|o ] three, one [ tw|o ] three'],
+    });
   });
 });
